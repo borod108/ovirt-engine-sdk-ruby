@@ -214,6 +214,8 @@ module Helpers # :nodoc:
       )
     end
 
+    # Create handeler for basic_auth requests:
+
     # Create the handler for Kerberos authentication requests:
     @server.mount_proc "#{PREFIX}/sso/oauth/token-http-auth" do |request, response|
       # Check basic properties of the request:
@@ -251,6 +253,42 @@ module Helpers # :nodoc:
       response.body = JSON.generate({})
     end
 
+    @server.mount_proc "#{PREFIX}/apis" do |request, response|
+      # Check that the password is correct:
+      test_log.info('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>..')
+      test_log.info(request.inspect)
+  # Save the request details:
+      @last_request_method = request.request_method
+      @last_request_body = request.body
+      # The query string can't be obtained directly from the request object, only a hash with the query
+      # parameter, and that is only available for GET and HEAD requests. We need it for POST and PUT
+      # requests, so we need to get them using the CGI variables.
+      vars = request.meta_vars
+      @last_request_query = vars['QUERY_STRING']
+      test_log.info('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>..')
+      test_log.info("last req: " + vars.to_s)
+
+      expected_password = test_password
+      actual_password = request.query['password']
+      unless actual_password == expected_password
+        response.status = 401
+        response.content_type = APPLICATION_JSON
+        response.body = JSON.generate(
+          :error_code => 0,
+          :error => "The password should be '#{expected_password}', but it is '#{actual_password}'"
+        )
+        next
+      end
+
+      # Everything seems correct:
+      response.status = 200
+      response.content_type = APPLICATION_JSON
+      response.body = JSON.generate(
+        :access_token => test_token,
+      )
+    end
+
+
     # Start the server in a different thread, as the call to the "start" method blocks the current thread:
     @thread = Thread.new {
       @server.start
@@ -262,7 +300,6 @@ module Helpers # :nodoc:
       # Save the request details:
       @last_request_method = request.request_method
       @last_request_body = request.body
-
       # The query string can't be obtained directly from the request object, only a hash with the query
       # parameter, and that is only available for GET and HEAD requests. We need it for POST and PUT
       # requests, so we need to get them using the CGI variables.
@@ -281,6 +318,7 @@ module Helpers # :nodoc:
         response.status = status
       end
     end
+
   end
 
   def stop_server
@@ -289,7 +327,6 @@ module Helpers # :nodoc:
   end
 
   def last_request_query
-    @last_request_query
   end
 
   def last_request_method

@@ -37,3 +37,51 @@ require 'ovirtsdk4/writer.rb'
 require 'ovirtsdk4/writers.rb'
 require 'ovirtsdk4/service.rb'
 require 'ovirtsdk4/services.rb'
+
+
+#if Rails.env.development?
+  #require 'byebug/core'
+  #Byebug.wait_connection = true
+  #Byebug.start_server 'localhost', 9048
+  #puts '>>>>>>>>>>>>>>.. contin'
+#end
+def byebug_has_client?
+  require 'byebug/core'
+
+  ObjectSpace.each_object(Byebug::RemoteInterface).count > 0
+end
+
+def byebug_ensure_server
+  require 'byebug/core'
+
+  return if Byebug.actual_port
+  Byebug.start_server('localhost', 0)  # pick an available port
+  until Byebug.actual_port
+    puts "~~~~~~ Bybug.actual_port = #{Byebug.actual_port} Bybug.actual_control_port = #{Byebug.actual_control_port}"
+    sleep(0.2)
+  end
+  #@log.log "Byebug.start_server: listening on port #{Byebug.actual_port}"
+#rescue => e
+  #@log.error "Couldn't Byebug.start_server: #{e}"
+  #@log.exception(e)
+  return
+end
+
+def byebug_term
+  require 'byebug/core'
+
+  byebug_ensure_server
+
+  unless byebug_has_client?
+    term = ENV.fetch("BYEBUG_TERM_COMMAND", "gnome-terminal -x")
+    system("#{term} byebug -R localhost:#{Byebug.actual_port} &")
+
+    until byebug_has_client?
+      sleep(0.2)
+    end
+  end
+
+  #byebug        # would open debugger here
+  Byebug.attach  # opens debugger in caller (it's what `byebug` calls)
+end
+

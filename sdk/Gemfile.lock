@@ -1,14 +1,24 @@
 PATH
   remote: .
   specs:
-    ovirt-engine-sdk (4.0.0.alpha13)
+    ovirt-engine-sdk (4.1.0.alpha1)
       curb (~> 0.8)
 
 GEM
   remote: http://rubygems.org/
   specs:
-    curb (0.9.1)
+    byebug (9.0.5)
+    coderay (1.1.1)
+    curb (0.9.3)
     diff-lcs (1.2.5)
+    method_source (0.8.2)
+    pry (0.10.4)
+      coderay (~> 1.1.0)
+      method_source (~> 0.8.1)
+      slop (~> 3.4)
+    pry-byebug (3.4.0)
+      byebug (~> 9.0)
+      pry (~> 0.10)
     rake (11.1.2)
     rake-compiler (0.9.7)
       rake
@@ -25,16 +35,19 @@ GEM
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.4.0)
     rspec-support (3.4.1)
+    slop (3.6.0)
     yard (0.8.7.6)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
+  byebug
   ovirt-engine-sdk!
+  pry-byebug
   rake-compiler (~> 0.9)
   rspec (~> 3.3)
   yard (~> 0.8)
 
 BUNDLED WITH
-   1.11.2
+   1.12.5
