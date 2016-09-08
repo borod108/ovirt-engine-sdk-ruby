@@ -42,6 +42,10 @@ end
 # This module contains utility functions to be used in all the examples.
 module Helpers # :nodoc:
 
+  attr_reader :last_request_query,
+              :last_request_method,
+              :last_request_body
+
   # The authentication details used by the embedded tests web server:
   REALM = 'API'
   USER = 'admin@internal'
@@ -263,24 +267,39 @@ module Helpers # :nodoc:
       response.body = JSON.generate({})
     end
 
+    @server.mount_proc "#{PREFIX}/apis" do |request, response|
+      @authenticator.authenticate(request, response)
+    end
+
+
     # Start the server in a different thread, as the call to the "start" method blocks the current thread:
     @thread = Thread.new {
       @server.start
     }
   end
 
-  def set_xml_response(path, status, body, delay = 0)
+  def conditional_api_response_lambda
+    -> (req) do
+      case req["version"]
+      when "3"
+        return API_V3_RESPONSE
+      when "4"
+        return API_V4_RESPONSE
+      end
+    end
+  end
+
+  def set_xml_response(path, status, body, delay = 0, conditional_body_lambda = nil)
     @server.mount_proc "#{PREFIX}/api/#{path}" do |request, response|
       # Save the request details:
       @last_request_method = request.request_method
       @last_request_body = request.body
-
       # The query string can't be obtained directly from the request object, only a hash with the query
       # parameter, and that is only available for GET and HEAD requests. We need it for POST and PUT
       # requests, so we need to get them using the CGI variables.
       vars = request.meta_vars
       @last_request_query = vars['QUERY_STRING']
-
+      body = conditional_body_lambda.call(request) if conditional_body_lambda
       # Check credentials, and if they are correct return the response:
       authorization = request['Authorization']
       if authorization != "Bearer #{test_token}"
@@ -300,17 +319,6 @@ module Helpers # :nodoc:
     @thread.join
   end
 
-  def last_request_query
-    @last_request_query
-  end
-
-  def last_request_method
-    @last_request_method
-  end
-
-  def last_request_body
-    @last_request_body
-  end
 end
 
 RSpec.configure do |c|

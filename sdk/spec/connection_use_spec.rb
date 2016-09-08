@@ -26,6 +26,13 @@ describe SDK::Connection do
     stop_server
   end
 
+  describe '#supported_api_versions' do
+    it 'calls Probe with self' do
+      expect(SDK::Probe).to receive(:probe).with(@connection)
+      @connection.supported_api_versions
+    end
+  end
+
   describe ".build_url" do
 
     context "when given only the base" do

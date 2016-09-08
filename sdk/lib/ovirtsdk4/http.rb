@@ -124,6 +124,9 @@ module OvirtSDK4
     #   compressed responses. Note that this is a hint for the server, and that it may return uncompressed data even
     #   when this parameter is set to `true`.
     #
+    # @option opts [Symbol] :auth (:oauth) Switch between basic authentication and OAuth,
+    #   valid values are :basic and :oauth. deafult value is :oauth.
+    #
     def initialize(opts = {})
       # Get the values of the parameters and assign default values:
       @url = opts[:url]
@@ -137,6 +140,7 @@ module OvirtSDK4
       @kerberos = opts[:kerberos] || false
       @timeout = opts[:timeout] || 0
       @compress = opts[:compress] || false
+      @auth = opts[:auth] || :oauth
 
       # Check mandatory parameters:
       if url.nil?
@@ -180,6 +184,9 @@ module OvirtSDK4
         end
       end
 
+      def supported_api_versions
+        Probe.probe(self)
+      end
     end
 
     #
@@ -214,6 +221,31 @@ module OvirtSDK4
       return system_service.service(path)
     end
 
+    def set_authentication!
+      case @auth
+      when :oauth
+        # Check if we already have an SSO access token:
+        @token ||= get_access_token
+        @curl.headers['Authorization'] = "Bearer #{@token}"
+      when :basic
+        @curl.http_auth_types = :basic
+        @curl.username = @username
+        @curl.password = @password
+      end
+    end
+
+    def set_headers!(request)
+      # Add headers, avoiding those that have no value:
+      @curl.headers.clear
+      @curl.headers['user-agent'] = "RubySDK/#{VERSION}"
+      @curl.headers['content-type'] = 'application/xml'
+      @curl.headers['accept'] = 'application/xml'
+      @curl.headers['version'] = 4
+      request.headers.each do |k,v|
+        @curl.headers[k.to_s.downcase] = v
+      end
+    end
+
     #
     # Sends an HTTP request and waits for the response.
     #
@@ -223,27 +255,16 @@ module OvirtSDK4
     # @api private
     #
     def send(request)
-      # Check if we already have an SSO access token:
-      @token ||= get_access_token
-
       # Build the URL:
       @curl.url = build_url({
         :path => request.path,
         :query => request.query,
       })
 
-      # Add headers, avoiding those that have no value:
-      @curl.headers.clear
-      @curl.headers.merge!(request.headers)
-      @curl.headers['User-Agent'] = "RubySDK/#{VERSION}"
-      @curl.headers['Version'] = '4'
-      @curl.headers['Content-Type'] = 'application/xml'
-      @curl.headers['Accept'] = 'application/xml'
-      @curl.headers['Authorization'] = "Bearer #{@token}"
-
+      set_headers!(request)
+      set_authentication!
       # Clear any data that may be in the buffers:
       @curl.post_body = nil
-
       # Send the request and wait for the response:
       case request.method
       when :DELETE
