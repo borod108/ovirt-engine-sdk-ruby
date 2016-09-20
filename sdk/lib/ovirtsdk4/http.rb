@@ -183,12 +183,11 @@ module OvirtSDK4
           end
         end
       end
-
-      def supported_api_versions
-        Probe.probe(self)
-      end
     end
 
+    def supported_api_versions
+      Probe.probe(self)
+    end
     #
     # Returns the base URL of this connection.
     #
